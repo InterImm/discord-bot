@@ -1,0 +1,29 @@
+name: Regular Clock
+
+on:
+  schedule:
+    - cron:  '0 10/5 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get current directory and files
+        run: |
+          pwd
+          ls
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+
+      - name: Install Python Requirements
+        run: pip install -r requirements.txt
+
+      - name: Post Current Time
+        run: |
+          python bot/clock.py -w ${{ secrets.DISCORD_CLOCK_WEBHOOK }}
