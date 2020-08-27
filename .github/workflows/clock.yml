@@ -1,8 +1,11 @@
 name: Regular Clock
 
 on:
-  schedule:
-    - cron:  '0 10/5 * * *'
+  push:
+    branches: 
+      - master
+#   schedule:
+#     - cron:  '0 10/5 * * *'
 
 jobs:
   build:
