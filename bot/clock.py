@@ -1,6 +1,8 @@
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import requests
 import click
+from loguru import logger
+import time
 
 
 class Clock:
@@ -20,6 +22,12 @@ class Clock:
         description = "in Isidis on Mars."
         self.message(content="Time on Mars", title=title, description=description)
 
+    def post_new_day(self) -> None:
+        ct = self._current_time()
+        title = "{year}-{month:02d}-{day:02d}".format(**ct)
+        description = "Have a great day!"
+        self.message(content="It's a new day on Mars!", title=title, description=description)
+
     def message(self, **kwargs) -> None:
 
         content = kwargs.get("content")
@@ -37,8 +45,26 @@ class Clock:
         response = self.hook.execute()
 
 
+def trigger_on_new_day(clock, check_interval):
+
+    st = clock._current_time()
+    current_day = st.get('day')
+
+    while True:
+        ct = clock._current_time()
+        if ct.get('day') != current_day:
+            clock.post_new_day()
+            current_day = ct.get('day')
+            logger.info("Posted to clock channel!")
+        logger.debug(f"Not a new day yet: {ct}")
+        time.sleep(check_interval)
+
+
+
 @click.command()
 @click.option("--webhook", "-w", type=str, required=True, help="Webhook url")
+@click.option("--function", "-f", type=str, default="now", help="Functionality")
+@click.option("--interval", "-i", type=int, default=60, help="waiting time for each API check")
 @click.option(
     "--clockapi",
     "-c",
@@ -46,10 +72,14 @@ class Clock:
     default="https://marsapi.interimm.org/now",
     help="Mars Clock API",
 )
-def clockbot(webhook, clockapi):
+def clockbot(webhook, clockapi, function, interval):
 
     cb = Clock(webhook, clockapi)
-    cb.post_current_time()
+
+    if function == "now":
+        cb.post_current_time()
+    elif function == "daily":
+        trigger_on_new_day(cb, interval)
 
 
 if __name__ == "__main__":
