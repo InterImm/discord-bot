@@ -11,22 +11,32 @@ class Clock:
         self.clockapi = clockapi
 
     def _current_time(self) -> dict:
-        r = requests.get(url=self.clockapi)
+        try:
+            r = requests.get(url=self.clockapi)
+        except Exception as e:
+            logger.error(f"Could not connect to {self.clockapi}\n{e}")
+            return None
         r_json = r.json()
         interimm = r_json.get("interimm", {})
         return interimm
 
     def post_current_time(self) -> None:
         ct = self._current_time()
-        title = "{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}".format(**ct)
-        description = "in Isidis on Mars."
-        self.message(content="Time on Mars", title=title, description=description)
+        if ct:
+            title = "{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}".format(**ct)
+            description = "in Isidis on Mars."
+            self.message(content="Time on Mars", title=title, description=description)
+        else:
+            logger.error("Could not post current time")
 
     def post_new_day(self) -> None:
         ct = self._current_time()
-        title = "{year}-{month:02d}-{day:02d}".format(**ct)
-        description = "Have a great day!"
-        self.message(content="It's a new day on Mars!", title=title, description=description)
+        if ct:
+            title = "{year}-{month:02d}-{day:02d}".format(**ct)
+            description = "Have a great day!"
+            self.message(content="It's a new day on Mars!", title=title, description=description)
+        else:
+            logger.error("Could not post new day")
 
     def message(self, **kwargs) -> None:
 
@@ -48,10 +58,14 @@ class Clock:
 def trigger_on_new_day(clock, check_interval):
 
     st = clock._current_time()
+    if not st:
+        raise Exception(f"Did not get current time!")
     current_day = st.get('day')
 
     while True:
         ct = clock._current_time()
+        if not ct:
+            continue
         if ct.get('day') != current_day:
             clock.post_new_day()
             current_day = ct.get('day')
