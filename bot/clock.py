@@ -3,6 +3,7 @@ import requests
 import click
 from loguru import logger
 import time
+from mastodon import Mastodon
 
 
 class Clock:
@@ -34,9 +35,12 @@ class Clock:
         if ct:
             title = "{year}-{month:02d}-{day:02d}".format(**ct)
             description = "Have a great day!"
-            self.message(content="It's a new day on Mars!", title=title, description=description)
+            message_content = "It's a new day on Mars!"
+            self.message(content=message_content, title=title, description=description)
         else:
             logger.error("Could not post new day")
+
+        return {"title": title, "description": description, "content": message_content}
 
     def message(self, **kwargs) -> None:
 
@@ -55,30 +59,36 @@ class Clock:
         response = self.hook.execute()
 
 
-def trigger_on_new_day(clock, check_interval):
+def trigger_on_new_day(clock, check_interval, mastodon_client=None):
 
     st = clock._current_time()
     if not st:
         raise Exception(f"Did not get current time!")
-    current_day = st.get('day')
+    current_day = st.get("day")
 
     while True:
         ct = clock._current_time()
         if not ct:
             continue
-        if ct.get('day') != current_day:
-            clock.post_new_day()
-            current_day = ct.get('day')
+        if ct.get("day") != current_day:
+            post_content = clock.post_new_day()
+            if mastodon_client is not None:
+                mastodon_message = "{post_content.get('title')}: {post_content.get('content')}! {post_content.get('description')} #marsclock"
+                mastodon_client.toot(mastodon_message)
+            current_day = ct.get("day")
             logger.info("Posted to clock channel!")
         logger.debug(f"Not a new day yet: {ct}")
         time.sleep(check_interval)
 
 
-
 @click.command()
 @click.option("--webhook", "-w", type=str, required=True, help="Webhook url")
+@click.option("--mastodon_token", "-mt", type=str, required=False, help="Mastodon token")
+@click.option("--mastodon_instance", "-mi", type=str, required=False, help="Mastodon instance url")
 @click.option("--function", "-f", type=str, default="now", help="Functionality")
-@click.option("--interval", "-i", type=int, default=60, help="waiting time for each API check")
+@click.option(
+    "--interval", "-i", type=int, default=60, help="waiting time for each API check"
+)
 @click.option(
     "--clockapi",
     "-c",
@@ -86,14 +96,22 @@ def trigger_on_new_day(clock, check_interval):
     default="https://marsapi.interimm.org/now",
     help="Mars Clock API",
 )
-def clockbot(webhook, clockapi, function, interval):
+def clockbot(webhook, clockapi, function, interval, mastodon_token, mastodon_instance):
 
     cb = Clock(webhook, clockapi)
+
+    if (mastodon_token is not None) and (mastodon_instance is not None):
+        mastodon = Mastodon(
+            access_token=mastodon_token,
+            api_base_url=mastodon_instance,
+        )
+    else:
+        mastodon = None
 
     if function == "now":
         cb.post_current_time()
     elif function == "daily":
-        trigger_on_new_day(cb, interval)
+        trigger_on_new_day(cb, interval, mastodon_client=mastodon)
 
 
 if __name__ == "__main__":
