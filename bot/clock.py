@@ -65,7 +65,7 @@ class Clock:
                 continue
             if ct.get("day") != current_day:
                 for action in actions:
-                    post_content = action(payload, kwargs)
+                    post_content = action(ct, **kwargs)
                 current_day = ct.get(
                     "day"
                 )  # Update current_day flag and get ready for the next day

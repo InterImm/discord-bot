@@ -37,7 +37,7 @@ class MastodonIO(ActionBase):
         greeting = message_payload.get("greeting")
         claim = message_payload.get("claim")
 
-        mastodon_message = f"{title} {greeting} #marsclock"
+        mastodon_message = f"{title} {greeting} Check the current time here: http://interimm.org/mars-clock #marsclock"
         self.mastodon.toot(mastodon_message)
 
         logger.info(f"{mastodon_message}")
